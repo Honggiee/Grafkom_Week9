@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Raytracer Demo</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 1px solid black; background-color: #000; }
+    </style>
+</head>
+<body>
+    <canvas id="raytraceCanvas" width="500" height="500"></canvas>
+
+    <script>
+        // --- Konseptual helper.js (Vektor 3D) ---
+        // (Dalam demo ini, disertakan langsung di sini)
+        const vec3 = {
+            create: (x = 0, y = 0, z = 0) => [x, y, z],
+
+            dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+
+            lengthSq: (a) => a[0] * a[0] + a[1] * a[1] + a[2] * a[2],
+
+            length: (a) => Math.sqrt(vec3.lengthSq(a)),
+
+            subtract: (out, a, b) => {
+                out[0] = a[0] - b[0];
+                out[1] = a[1] - b[1];
+                out[2] = a[2] - b[2];
+                return out;
+            },
+
+            normalize: (out, a) => {
+                const len = vec3.length(a);
+                if (len > 0.00001) { // Hindari pembagian dengan nol
+                    out[0] = a[0] / len;
+                    out[1] = a[1] / len;
+                    out[2] = a[2] / len;
+                } else {
+                    out[0] = 0;
+                    out[1] = 0;
+                    out[2] = 0;
+                }
+                return out;
+            },
+
+             add: (out, a, b) => {
+                out[0] = a[0] + b[0];
+                out[1] = a[1] + b[1];
+                out[2] = a[2] + b[2];
+                return out;
+            },
+
+            scale: (out, a, s) => {
+                out[0] = a[0] * s;
+                out[1] = a[1] * s;
+                out[2] = a[2] * s;
+                return out;
+            }
+        };
+        // --- Akhir konseptual helper.js ---
+
+        // --- Definisi Scene ---
+        const sphere = {
+            center: vec3.create(0, 0, 0), // Pusat bola di origin
+            radius: 1.0,
+            radiusSq: 1.0 * 1.0, // Precompute radius kuadrat
+            color: [255, 255, 255] // Warna bola (putih)
+        };
+
+        const camera = {
+            origin: vec3.create(0, 0, -3), // Posisi kamera sedikit di belakang sumbu Z negatif
+            // Viewport akan kita definisikan saat kalkulasi ray
+        };
+
+        const backgroundColor = [0, 0, 100]; // Warna latar (biru gelap)
+
+        // --- Fungsi Ray-Sphere Intersection ---
+        // Mengembalikan jarak (t) jika ada intersection, atau Infinity jika tidak
+        function intersectSphere(rayOrigin, rayDirection, sphere) {
+            const oc = vec3.create(); // Vektor dari pusat sphere ke origin ray
+            vec3.subtract(oc, rayOrigin, sphere.center);
+
+            const a = vec3.dot(rayDirection, rayDirection); // Biasanya 1 jika direction dinormalisasi
+            const b = 2.0 * vec3.dot(oc, rayDirection);
+            const c = vec3.dot(oc, oc) - sphere.radiusSq;
+            const discriminant = b * b - 4 * a * c;
+
+            if (discriminant < 0) {
+                return Infinity; // Tidak ada intersection
+            } else {
+                // Hitung kedua solusi t
+                const t1 = (-b - Math.sqrt(discriminant)) / (2.0 * a);
+                const t2 = (-b + Math.sqrt(discriminant)) / (2.0 * a);
+
+                // Kita inginkan intersection terdekat yang positif (di depan kamera)
+                if (t1 > 0.001) return t1; // 0.001 untuk menghindari self-intersection
+                if (t2 > 0.001) return t2;
+
+                return Infinity; // Kedua intersection di belakang kamera atau terlalu dekat
+            }
+        }
+
+        // --- Logika Rendering Utama ---
+        const canvas = document.getElementById('raytraceCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const imageData = ctx.createImageData(width, height);
+        const data = imageData.data; // Array [R, G, B, A, R, G, B, A, ...]
+
+        console.log("Starting Raytrace...");
+        const startTime = performance.now();
+
+        // Iterasi melalui setiap piksel di canvas
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+
+                // 1. Konversi koordinat piksel (x, y) ke koordinat viewport (-1 to 1)
+                //    Viewport kita anggap berada di z = -1 (antara kamera dan origin)
+                //    Ukuran viewport disesuaikan agar aspek rasio terjaga
+                const aspectRatio = width / height;
+                const viewportX = ( (x + 0.5) / width * 2.0 - 1.0 ) * aspectRatio; // +0.5 untuk pusat piksel
+                const viewportY = ( 1.0 - (y + 0.5) / height * 2.0 ); // Y dibalik karena canvas y ke bawah
+
+                // 2. Tentukan titik pada viewport plane
+                const viewportPoint = vec3.create(viewportX, viewportY, -1); // Viewport plane di z = -1
+
+                // 3. Hitung arah ray dari kamera ke titik viewport
+                const rayDirection = vec3.create();
+                vec3.subtract(rayDirection, viewportPoint, camera.origin);
+                vec3.normalize(rayDirection, rayDirection); // Normalisasi arah
+
+                // 4. Lakukan intersection test
+                const t = intersectSphere(camera.origin, rayDirection, sphere);
+
+                // 5. Tentukan warna piksel
+                let pixelColor = backgroundColor;
+                if (t !== Infinity) {
+                    // Jika ray mengenai bola
+                    pixelColor = sphere.color;
+                }
+
+                // 6. Set data warna piksel di ImageData
+                const index = (y * width + x) * 4; // Setiap piksel butuh 4 elemen (R,G,B,A)
+                data[index]     = pixelColor[0]; // R
+                data[index + 1] = pixelColor[1]; // G
+                data[index + 2] = pixelColor[2]; // B
+                data[index + 3] = 255;           // A (Opaque)
+            }
+             // Update progress (optional)
+             if (y % 50 === 0 && y > 0) {
+                console.log(`Rendering... ${Math.round((y / height) * 100)}%`);
+            }
+        }
+
+        // 7. Gambar hasil ke canvas
+        ctx.putImageData(imageData, 0, 0);
+
+        const endTime = performance.now();
+        console.log(`Raytrace finished in ${((endTime - startTime)/1000).toFixed(2)} seconds.`);
+
+    </script>
+</body>
+</html>
