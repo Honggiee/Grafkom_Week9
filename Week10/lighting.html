@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Raytracer Demo - Phong Lighting</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #333;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      canvas {
+        border: 1px solid black;
+        background-color: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="raytraceCanvas" width="500" height="500"></canvas>
+
+    <script>
+      // --- Konseptual helper.js (Vektor 3D) ---
+      const vec3 = {
+        create: (x = 0, y = 0, z = 0) => [x, y, z],
+        dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+        lengthSq: (a) => a[0] * a[0] + a[1] * a[1] + a[2] * a[2],
+        length: (a) => Math.sqrt(vec3.lengthSq(a)),
+        subtract: (out, a, b) => {
+          out[0] = a[0] - b[0];
+          out[1] = a[1] - b[1];
+          out[2] = a[2] - b[2];
+          return out;
+        },
+        normalize: (out, a) => {
+          const len = vec3.length(a);
+          if (len > 0.00001) {
+            const invLen = 1.0 / len;
+            out[0] = a[0] * invLen;
+            out[1] = a[1] * invLen;
+            out[2] = a[2] * invLen;
+          } else {
+            out[0] = 0;
+            out[1] = 0;
+            out[2] = 0;
+          }
+          return out;
+        },
+        add: (out, a, b) => {
+          out[0] = a[0] + b[0];
+          out[1] = a[1] + b[1];
+          out[2] = a[2] + b[2];
+          return out;
+        },
+        scale: (out, a, s) => {
+          out[0] = a[0] * s;
+          out[1] = a[1] * s;
+          out[2] = a[2] * s;
+          return out;
+        },
+        // Perkalian komponen-demi-komponen (untuk warna)
+        multiply: (out, a, b) => {
+          out[0] = a[0] * b[0];
+          out[1] = a[1] * b[1];
+          out[2] = a[2] * b[2];
+          return out;
+        },
+        // Clamp komponen vektor antara min dan max
+        clamp: (out, a, min, max) => {
+          out[0] = Math.max(min, Math.min(max, a[0]));
+          out[1] = Math.max(min, Math.min(max, a[1]));
+          out[2] = Math.max(min, Math.min(max, a[2]));
+          return out;
+        },
+      };
+      // --- Akhir konseptual helper.js ---
+
+      // --- Definisi Scene ---
+      const spheres = [
+        // Bola Merah Kiri (Material lebih matte)
+        {
+          center: vec3.create(-1.0, 0, 0),
+          radius: 0.7,
+          radiusSq: 0.7 * 0.7,
+          color: [1.0, 0.1, 0.1], // Warna dasar (0-1 range)
+          shininess: 10,
+          specularFactor: 0.2,
+        },
+        // Bola Hijau Kanan (Material lebih mengkilap)
+        {
+          center: vec3.create(1.0, 0, 0),
+          radius: 1.0,
+          radiusSq: 1.0 * 1.0,
+          color: [0.1, 1.0, 0.1], // Warna dasar (0-1 range)
+          shininess: 100,
+          specularFactor: 0.8,
+        },
+        // Bola Biru Bawah (Material pertengahan)
+        {
+          center: vec3.create(0, -0.8, -1.0),
+          radius: 0.4,
+          radiusSq: 0.4 * 0.4,
+          color: [0.1, 0.1, 1.0], // Warna dasar (0-1 range)
+          shininess: 32,
+          specularFactor: 0.5,
+        },
+      ];
+
+      const camera = {
+        origin: vec3.create(0, 0, -5),
+        viewPlaneZ: -1,
+      };
+
+      // Sumber Cahaya Tunggal
+      const light = {
+        position: vec3.create(-3, 3, -3), // Posisi di kiri atas depan
+        color: [1.0, 1.0, 1.0], // Warna cahaya (putih)
+        intensity: 1.0, // Intensitas cahaya
+      };
+
+      // Cahaya Ambient Scene
+      const ambientLight = {
+        color: [1.0, 1.0, 1.0], // Warna ambient
+        intensity: 0.15, // Intensitas ambient (cukup redup)
+      };
+
+      const backgroundColor = [0.1, 0.1, 0.2]; // Background [0, 1]
+
+      // --- Fungsi Ray-Sphere Intersection ---
+      // (Tidak Berubah)
+      function intersectSphere(rayOrigin, rayDirection, sphere) {
+        const oc = vec3.create();
+        vec3.subtract(oc, rayOrigin, sphere.center);
+        const a = vec3.dot(rayDirection, rayDirection);
+        const b = 2.0 * vec3.dot(oc, rayDirection);
+        const c = vec3.dot(oc, oc) - sphere.radiusSq;
+        const discriminant = b * b - 4 * a * c;
+
+        if (discriminant < 0) {
+          return Infinity;
+        } else {
+          const t1 = (-b - Math.sqrt(discriminant)) / (2.0 * a);
+          const t2 = (-b + Math.sqrt(discriminant)) / (2.0 * a);
+          if (t1 > 0.001) return t1;
+          if (t2 > 0.001) return t2;
+          return Infinity;
+        }
+      }
+
+      // --- Fungsi Proyeksi 3D ke 2D Canvas ---
+      // (Tidak Berubah, tapi kita tidak gunakan lagi di kode utama ini)
+      function projectToCanvas(
+        worldPoint,
+        camera,
+        width,
+        height,
+        aspectRatio,
+        scale
+      ) {
+        /* ... implementasi sama ... */
+      }
+
+      // --- Logika Rendering Utama ---
+      const canvas = document.getElementById("raytraceCanvas");
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      const imageData = ctx.createImageData(width, height);
+      const data = imageData.data;
+      const aspectRatio = width / height;
+      const renderScale = 2.0;
+
+      // --- Pre-calculate values ---
+      const ambientColor = vec3.scale(
+        vec3.create(),
+        ambientLight.color,
+        ambientLight.intensity
+      );
+      const lightColorIntensity = vec3.scale(
+        vec3.create(),
+        light.color,
+        light.intensity
+      );
+
+      console.log("Starting Raytrace (Phong Lighting)...");
+      const startTime = performance.now();
+
+      // Iterasi piksel untuk Raytracing
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          // 1. Konversi piksel ke viewport & 2. Titik pada viewport plane
+          const viewportX =
+            (((x + 0.5) / width) * 2.0 - 1.0) * aspectRatio * renderScale;
+          const viewportY = (1.0 - ((y + 0.5) / height) * 2.0) * renderScale;
+          const viewportPoint = vec3.create(
+            viewportX,
+            viewportY,
+            camera.viewPlaneZ
+          );
+
+          // 3. Arah Ray
+          const rayDirection = vec3.create();
+          vec3.subtract(rayDirection, viewportPoint, camera.origin);
+          vec3.normalize(rayDirection, rayDirection);
+
+          // 4. Cari intersection terdekat
+          let closestT = Infinity;
+          let hitSphere = null; // Simpan objek bola yang terkena
+
+          for (const currentSphere of spheres) {
+            const t = intersectSphere(
+              camera.origin,
+              rayDirection,
+              currentSphere
+            );
+            if (t > 0.001 && t < closestT) {
+              closestT = t;
+              hitSphere = currentSphere; // Simpan referensi bola
+            }
+          }
+
+          let finalColor = backgroundColor; // Default background
+
+          // 5. Jika ada intersection, hitung pencahayaan Phong
+          if (hitSphere) {
+            // --- Hitung data titik potong ---
+            const hitPoint = vec3.create();
+            vec3.scale(hitPoint, rayDirection, closestT); // hitPoint = t * rayDir
+            vec3.add(hitPoint, camera.origin, hitPoint); // hitPoint = camOrigin + t * rayDir
+
+            const normal = vec3.create();
+            vec3.subtract(normal, hitPoint, hitSphere.center); // Normal = P - C
+            vec3.normalize(normal, normal); // Normalisasi
+
+            const objectColor = hitSphere.color;
+
+            // --- Hitung Vektor Pencahayaan ---
+            const lightDir = vec3.create();
+            vec3.subtract(lightDir, light.position, hitPoint); // Vektor ke cahaya
+            vec3.normalize(lightDir, lightDir);
+
+            const viewDir = vec3.create();
+            vec3.subtract(viewDir, camera.origin, hitPoint); // Vektor ke kamera
+            vec3.normalize(viewDir, viewDir);
+
+            // --- Hitung Komponen Phong ---
+
+            // a) Komponen Ambient
+            // ambient = objectColor * ambientLightIntensity * ambientLightColor
+            const ambientTerm = vec3.create();
+            vec3.multiply(ambientTerm, objectColor, ambientColor); // ambientColor sudah dikali intensity
+
+            // b) Komponen Diffuse
+            // diffuse = objectColor * lightColor * lightIntensity * max(0, dot(normal, lightDir))
+            const dotNL = Math.max(0.0, vec3.dot(normal, lightDir));
+            const diffuseTerm = vec3.create();
+            vec3.multiply(diffuseTerm, objectColor, lightColorIntensity); // objCol * lightCol * lightInt
+            vec3.scale(diffuseTerm, diffuseTerm, dotNL); // * dotNL
+
+            // c) Komponen Specular (Blinn-Phong)
+            // specular = lightColor * lightIntensity * specularFactor * pow(max(0, dot(normal, halfwayDir)), shininess)
+            const halfwayDir = vec3.create();
+            vec3.add(halfwayDir, lightDir, viewDir); // H = L + V
+            vec3.normalize(halfwayDir, halfwayDir); // Normalize H
+            const dotNH = Math.max(0.0, vec3.dot(normal, halfwayDir));
+            const specularFactor =
+              Math.pow(dotNH, hitSphere.shininess) * hitSphere.specularFactor;
+            const specularTerm = vec3.create();
+            vec3.scale(specularTerm, lightColorIntensity, specularFactor); // lightCol*lightInt * specFactor*pow(...)
+
+            // --- Jumlahkan Komponen & Clamp ---
+            const litColor = vec3.create();
+            vec3.add(litColor, ambientTerm, diffuseTerm); // ambient + diffuse
+            vec3.add(litColor, litColor, specularTerm); // + specular
+
+            vec3.clamp(litColor, litColor, 0.0, 1.0); // Pastikan [0, 1]
+            finalColor = litColor;
+          }
+
+          // 6. Set warna piksel (konversi ke [0, 255])
+          const index = (y * width + x) * 4;
+          data[index] = Math.floor(finalColor[0] * 255); // R
+          data[index + 1] = Math.floor(finalColor[1] * 255); // G
+          data[index + 2] = Math.floor(finalColor[2] * 255); // B
+          data[index + 3] = 255; // A (Opaque)
+        }
+        if (y % 50 === 0 && y > 0) {
+          console.log(`Rendering... ${Math.round((y / height) * 100)}%`);
+        }
+      }
+
+      // 7. Gambar hasil raytrace ke canvas
+      ctx.putImageData(imageData, 0, 0);
+
+      // (Menghilangkan gambar label radius untuk fokus pada lighting)
+
+      const endTime = performance.now();
+      console.log(
+        `Raytrace finished in ${((endTime - startTime) / 1000).toFixed(
+          2
+        )} seconds.`
+      );
+    </script>
+  </body>
+</html>
