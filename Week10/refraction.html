@@ -3,17 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Raytracer Demo - Refraction (Bola Tengah Biru Kecil)</title>
+    <title>Raytracer Demo - Live IOR Control</title>
     <style>
       body {
         margin: 0;
         overflow: hidden;
-        background-color: #333;
+        background-color: #222;
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
         height: 100vh;
+        font-family: sans-serif;
+        color: #eee;
       }
+      .controls {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #333;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .controls label,
+      .controls span {
+        margin-right: 5px;
+      }
+      .controls input[type="range"] {
+        width: 200px; /* Sedikit lebih lebar */
+      }
+      /* Tombol render ulang dihilangkan */
       canvas {
         border: 1px solid black;
         background-color: #000;
@@ -21,6 +41,19 @@
     </style>
   </head>
   <body>
+    <div class="controls">
+      <label for="iorSlider">IOR Bola Biru:</label>
+      <input
+        type="range"
+        id="iorSlider"
+        min="1.0"
+        max="2.5"
+        step="0.01"
+        value="1.52"
+      />
+      <span id="iorValueDisplay">1.52</span>
+      <!-- Tombol render ulang dihilangkan -->
+    </div>
     <canvas id="raytraceCanvas" width="500" height="500"></canvas>
 
     <script>
@@ -76,28 +109,24 @@
           return out;
         },
         reflect: (out, inc, norm) => {
-            const d = vec3.dot(inc, norm);
-            out[0] = inc[0] - 2 * d * norm[0];
-            out[1] = inc[1] - 2 * d * norm[1];
-            out[2] = inc[2] - 2 * d * norm[2];
-            return out;
+          const d = vec3.dot(inc, norm);
+          out[0] = inc[0] - 2 * d * norm[0];
+          out[1] = inc[1] - 2 * d * norm[1];
+          out[2] = inc[2] - 2 * d * norm[2];
+          return out;
         },
-        refract: (out, inc_dir, normal_interface, eta) => { // eta = n_incident / n_transmitted
-            const cosi = -vec3.dot(inc_dir, normal_interface);
-            const k = 1.0 - eta * eta * (1.0 - cosi * cosi);
-
-            if (k < 0) {
-                return null; // Total Internal Reflection
-            }
-            const cost = Math.sqrt(k);
-            
-            const term_scalar = eta * cosi - cost;
-            out[0] = eta * inc_dir[0] + term_scalar * normal_interface[0];
-            out[1] = eta * inc_dir[1] + term_scalar * normal_interface[1];
-            out[2] = eta * inc_dir[2] + term_scalar * normal_interface[2];
-            vec3.normalize(out, out);
-            return out;
-        }
+        refract: (out, inc_dir, normal_interface, eta) => {
+          const cosi = -vec3.dot(inc_dir, normal_interface);
+          const k = 1.0 - eta * eta * (1.0 - cosi * cosi);
+          if (k < 0) return null;
+          const cost = Math.sqrt(k);
+          const term_scalar = eta * cosi - cost;
+          out[0] = eta * inc_dir[0] + term_scalar * normal_interface[0];
+          out[1] = eta * inc_dir[1] + term_scalar * normal_interface[1];
+          out[2] = eta * inc_dir[2] + term_scalar * normal_interface[2];
+          vec3.normalize(out, out);
+          return out;
+        },
       };
       // --- Akhir konseptual helper.js ---
 
@@ -107,23 +136,35 @@
 
       // --- Definisi Scene ---
       const spheres = [
-        { // Bola 1: Kiri, Merah Buram
-          center: vec3.create(-1.2, -0.2, 0.2), radius: 0.7, radiusSq: 0.7*0.7,
-          color: [1.0, 0.1, 0.1], shininess: 10, specularFactor: 0.2,
-          reflectivity: 0.1, transparency: 0.0, ior: 1.5,
+        {
+          center: vec3.create(-1.2, -0.2, 0.2),
+          radius: 0.7,
+          radiusSq: 0.7 * 0.7,
+          color: [1.0, 0.1, 0.1],
+          shininess: 10,
+          specularFactor: 0.2,
+          reflectivity: 0.1,
+          transparency: 0.0,
+          ior: 1.5,
           isPlane: false,
         },
-        { // Bola 2: Kanan, Hijau (sedikit transparan)
-          center: vec3.create(1.2, 0.0, 0.0), radius: 0.8, radiusSq: 0.8*0.8,
-          color: [0.2, 0.8, 0.3], shininess: 80, specularFactor: 0.6,
-          reflectivity: 0.2, transparency: 0.3, ior: 1.33,
+        {
+          center: vec3.create(1.2, 0.0, 0.0),
+          radius: 0.8,
+          radiusSq: 0.8 * 0.8,
+          color: [0.2, 0.8, 0.3],
+          shininess: 80,
+          specularFactor: 0.6,
+          reflectivity: 0.2,
+          transparency: 0.3,
+          ior: 1.33,
           isPlane: false,
         },
-        { // Bola 3: Tengah-Belakang, Kaca BIRU Transparan, Lebih Kecil
+        {
           center: vec3.create(0.0, -0.3, -0.8),
           radius: 0.4,
-          radiusSq: 0.4*0.4,
-          color: [0.3, 0.5, 0.9], // Warna dasar BIRU (untuk tinting)
+          radiusSq: 0.4 * 0.4,
+          color: [0.3, 0.5, 0.9],
           shininess: 200,
           specularFactor: 0.2,
           reflectivity: 0.08,
@@ -133,27 +174,46 @@
         },
       ];
 
-
       const floorPlane = {
-        point: vec3.create(0, -1.0, 0), normal: vec3.create(0, 1, 0),
-        color1: [0.7, 0.7, 0.7], color2: [0.2, 0.2, 0.2],
-        shininess: 50, specularFactor: 0.3, reflectivity: 0.3,
-        transparency: 0.0, ior: 1.0,
-        isPlane: true, checkerScale: 0.8,
+        point: vec3.create(0, -1.0, 0),
+        normal: vec3.create(0, 1, 0),
+        color1: [0.7, 0.7, 0.7],
+        color2: [0.2, 0.2, 0.2],
+        shininess: 50,
+        specularFactor: 0.3,
+        reflectivity: 0.3,
+        transparency: 0.0,
+        ior: 1.0,
+        isPlane: true,
+        checkerScale: 0.8,
       };
 
-      const sceneObjects = [...spheres, floorPlane];
+      let currentSceneObjects = [];
+
       const camera = { origin: vec3.create(0, 0.5, -5), viewPlaneZ: -1 };
       const lights = [
-        { position: vec3.create(-4, 4, -3), color: [1.0, 0.9, 0.8], intensity: 0.7 },
-        { position: vec3.create(4, 3, -4), color: [0.8, 0.9, 1.0], intensity: 0.6 },
-        { position: vec3.create(0.5, 10, -1), color: [0.7, 0.7, 0.7], intensity: 0.4 },
+        {
+          position: vec3.create(-4, 4, -3),
+          color: [1.0, 0.9, 0.8],
+          intensity: 0.7,
+        },
+        {
+          position: vec3.create(4, 3, -4),
+          color: [0.8, 0.9, 1.0],
+          intensity: 0.6,
+        },
+        {
+          position: vec3.create(0.5, 10, -1),
+          color: [0.7, 0.7, 0.7],
+          intensity: 0.4,
+        },
       ];
       const ambientLight = { color: [1.0, 1.0, 1.0], intensity: 0.05 };
       const backgroundColor = [0.05, 0.05, 0.1];
 
-       function intersectSphere(rayOrigin, rayDirection, sphere) {
-        const oc = vec3.create(); vec3.subtract(oc, rayOrigin, sphere.center);
+      function intersectSphere(rayOrigin, rayDirection, sphere) {
+        const oc = vec3.create();
+        vec3.subtract(oc, rayOrigin, sphere.center);
         const a = vec3.dot(rayDirection, rayDirection);
         const b = 2.0 * vec3.dot(oc, rayDirection);
         const c = vec3.dot(oc, oc) - sphere.radiusSq;
@@ -169,30 +229,39 @@
       function intersectPlane(rayOrigin, rayDirection, plane) {
         const denominator = vec3.dot(plane.normal, rayDirection);
         if (Math.abs(denominator) > EPSILON) {
-          const p0l0 = vec3.create(); vec3.subtract(p0l0, plane.point, rayOrigin);
+          const p0l0 = vec3.create();
+          vec3.subtract(p0l0, plane.point, rayOrigin);
           const t = vec3.dot(p0l0, plane.normal) / denominator;
           if (t > EPSILON) return t;
         }
         return Infinity;
       }
 
-      // --- Fungsi Trace Ray Utama dengan Refraksi ---
-      function traceRay(rayOrigin, rayDirection, sceneObjects, lights, globalAmbientContribution, backgroundColor, depth, currentIOR) {
-        if (depth > MAX_RECURSION_DEPTH) {
-          return backgroundColor;
-        }
+      function traceRay(
+        rayOrigin,
+        rayDirection,
+        sceneObjsToTrace,
+        lightsToUse,
+        globalAmbient,
+        bgColor,
+        depth,
+        currentMediumIOR
+      ) {
+        if (depth > MAX_RECURSION_DEPTH) return bgColor;
 
         let closestT = Infinity;
         let hitObject = null;
-        for (const object of sceneObjects) {
-          let t = object.isPlane ? intersectPlane(rayOrigin, rayDirection, object) : intersectSphere(rayOrigin, rayDirection, object);
+        for (const object of sceneObjsToTrace) {
+          let t = object.isPlane
+            ? intersectPlane(rayOrigin, rayDirection, object)
+            : intersectSphere(rayOrigin, rayDirection, object);
           if (t < closestT) {
             closestT = t;
             hitObject = object;
           }
         }
 
-        if (!hitObject) return backgroundColor;
+        if (!hitObject) return bgColor;
 
         const hitPoint = vec3.create();
         vec3.scale(hitPoint, rayDirection, closestT);
@@ -208,8 +277,12 @@
 
         if (hitObject.isPlane) {
           surfaceNormal_true = vec3.clone(hitObject.normal);
-          const checkerVal = (Math.floor(hitPoint[0] * hitObject.checkerScale + EPSILON) + Math.floor(hitPoint[2] * hitObject.checkerScale + EPSILON)) % 2;
-          objectBaseColor = (checkerVal === 0) ? hitObject.color1 : hitObject.color2;
+          const checkerVal =
+            (Math.floor(hitPoint[0] * hitObject.checkerScale + EPSILON) +
+              Math.floor(hitPoint[2] * hitObject.checkerScale + EPSILON)) %
+            2;
+          objectBaseColor =
+            checkerVal === 0 ? hitObject.color1 : hitObject.color2;
         } else {
           surfaceNormal_true = vec3.create();
           vec3.subtract(surfaceNormal_true, hitPoint, hitObject.center);
@@ -221,27 +294,36 @@
         vec3.subtract(viewDir, rayOrigin, hitPoint);
         vec3.normalize(viewDir, viewDir);
 
-        const localColor = vec3.create(0,0,0);
+        const localColor = vec3.create(0, 0, 0);
         const ambientTerm = vec3.create();
-        vec3.multiply(ambientTerm, objectBaseColor, globalAmbientContribution);
+        vec3.multiply(ambientTerm, objectBaseColor, globalAmbient);
         vec3.add(localColor, localColor, ambientTerm);
 
-        for (const lightSource of lights) {
+        for (const lightSource of lightsToUse) {
           const lightDir = vec3.create();
           vec3.subtract(lightDir, lightSource.position, hitPoint);
           const distanceToLight = vec3.length(lightDir);
           vec3.normalize(lightDir, lightDir);
 
           const shadowRayOrigin = vec3.create();
-          let shadowNormal = vec3.dot(surfaceNormal_true, lightDir) > 0 ? surfaceNormal_true : vec3.scale(vec3.create(), surfaceNormal_true, -1) ;
+          let shadowNormal =
+            vec3.dot(surfaceNormal_true, lightDir) > 0
+              ? surfaceNormal_true
+              : vec3.scale(vec3.create(), surfaceNormal_true, -1);
           vec3.scale(shadowRayOrigin, shadowNormal, EPSILON);
           vec3.add(shadowRayOrigin, hitPoint, shadowRayOrigin);
 
           let inShadow = false;
-          for (const shadowObject of sceneObjects) {
-            // Objek transparan tidak sepenuhnya membayangi dirinya sendiri (penyederhanaan)
-            if (shadowObject === hitObject && materialTransparency > 0.5 && !shadowObject.isPlane) continue;
-            let tShadow = shadowObject.isPlane ? intersectPlane(shadowRayOrigin, lightDir, shadowObject) : intersectSphere(shadowRayOrigin, lightDir, shadowObject);
+          for (const shadowObject of sceneObjsToTrace) {
+            if (
+              shadowObject === hitObject &&
+              materialTransparency > 0.5 &&
+              !shadowObject.isPlane
+            )
+              continue;
+            let tShadow = shadowObject.isPlane
+              ? intersectPlane(shadowRayOrigin, lightDir, shadowObject)
+              : intersectSphere(shadowRayOrigin, lightDir, shadowObject);
             if (tShadow < distanceToLight) {
               inShadow = true;
               break;
@@ -249,20 +331,19 @@
           }
 
           if (!inShadow) {
-            const currentLightColorIntensity = vec3.scale(vec3.create(), lightSource.color, lightSource.intensity);
+            const currentLightColorIntensity = vec3.scale(
+              vec3.create(),
+              lightSource.color,
+              lightSource.intensity
+            );
             const dotNL = Math.max(0.0, vec3.dot(surfaceNormal_true, lightDir));
             if (dotNL > 0) {
               const diffuseTerm = vec3.create();
-              // Untuk objek transparan, warna diffuse lokal mungkin tidak diinginkan, atau dikurangi
-              // Jika transparency > 0, kurangi kontribusi diffuse lokal berdasarkan transparansi
-              let diffuseColorContribution = vec3.clone(objectBaseColor);
-              if (materialTransparency > 0) {
-                  // Misalnya, objectBaseColor sekarang hanya sebagai filter untuk transmisi
-                  // dan diffuse lokalnya lebih netral atau tidak ada.
-                  // Atau, kurangi kontribusi diffuse berdasarkan seberapa transparan objeknya.
-                  // Untuk saat ini, kita biarkan seperti Phong standar, tapi ini area untuk perbaikan.
-              }
-              vec3.multiply(diffuseTerm, diffuseColorContribution, currentLightColorIntensity);
+              vec3.multiply(
+                diffuseTerm,
+                objectBaseColor,
+                currentLightColorIntensity
+              );
               vec3.scale(diffuseTerm, diffuseTerm, dotNL);
               vec3.add(localColor, localColor, diffuseTerm);
             }
@@ -270,76 +351,124 @@
             const halfwayDir = vec3.create();
             vec3.add(halfwayDir, lightDir, viewDir);
             vec3.normalize(halfwayDir, halfwayDir);
-            const dotNH = Math.max(0.0, vec3.dot(surfaceNormal_true, halfwayDir));
+            const dotNH = Math.max(
+              0.0,
+              vec3.dot(surfaceNormal_true, halfwayDir)
+            );
             if (dotNL > 0 && dotNH > 0) {
               const specularPower = Math.pow(dotNH, materialShininess);
               const specularAmount = specularPower * materialSpecularFactor;
               const specularTerm = vec3.create();
-              vec3.scale(specularTerm, currentLightColorIntensity, specularAmount);
+              vec3.scale(
+                specularTerm,
+                currentLightColorIntensity,
+                specularAmount
+              );
               vec3.add(localColor, localColor, specularTerm);
             }
           }
         }
 
-        let reflectedColor = vec3.create(0,0,0);
+        let reflectedColor = vec3.create(0, 0, 0);
         if (materialReflectivity > 0 && depth < MAX_RECURSION_DEPTH) {
           const reflectionRayDir = vec3.create();
           vec3.reflect(reflectionRayDir, rayDirection, surfaceNormal_true);
           const reflectionRayOrigin = vec3.create();
           vec3.scale(reflectionRayOrigin, reflectionRayDir, EPSILON);
           vec3.add(reflectionRayOrigin, hitPoint, reflectionRayOrigin);
-          reflectedColor = traceRay(reflectionRayOrigin, reflectionRayDir, sceneObjects, lights, globalAmbientContribution, backgroundColor, depth + 1, currentIOR);
+          reflectedColor = traceRay(
+            reflectionRayOrigin,
+            reflectionRayDir,
+            sceneObjsToTrace,
+            lightsToUse,
+            globalAmbient,
+            bgColor,
+            depth + 1,
+            currentMediumIOR
+          );
         }
 
-        let refractedColor = vec3.create(0,0,0);
+        let refractedColor = vec3.create(0, 0, 0);
         if (materialTransparency > 0 && depth < MAX_RECURSION_DEPTH) {
-            let N_interface = vec3.clone(surfaceNormal_true);
-            let incident_ior = currentIOR;
-            let transmitted_ior = materialIOR;
+          let N_interface = vec3.clone(surfaceNormal_true);
+          let incident_ior = currentMediumIOR;
+          let transmitted_ior = materialIOR;
 
-            if (vec3.dot(rayDirection, surfaceNormal_true) > 0) { // Ray keluar dari objek
-                transmitted_ior = IOR_AIR;
-                vec3.scale(N_interface, N_interface, -1);
+          if (vec3.dot(rayDirection, surfaceNormal_true) > 0) {
+            transmitted_ior = IOR_AIR;
+            vec3.scale(N_interface, N_interface, -1);
+          }
+
+          const eta_ratio = incident_ior / transmitted_ior;
+          const refractionRayDir_calc = vec3.create();
+          const refracted = vec3.refract(
+            refractionRayDir_calc,
+            rayDirection,
+            N_interface,
+            eta_ratio
+          );
+
+          if (refracted) {
+            const refractionRayOrigin = vec3.create();
+            vec3.scale(refractionRayOrigin, refractionRayDir_calc, EPSILON);
+            vec3.add(refractionRayOrigin, hitPoint, refractionRayOrigin);
+            refractedColor = traceRay(
+              refractionRayOrigin,
+              refractionRayDir_calc,
+              sceneObjsToTrace,
+              lightsToUse,
+              globalAmbient,
+              bgColor,
+              depth + 1,
+              transmitted_ior
+            );
+
+            if (!hitObject.isPlane) {
+              const tintedRefracted = vec3.create();
+              vec3.multiply(tintedRefracted, refractedColor, objectBaseColor);
+              refractedColor = tintedRefracted;
             }
-            // Jika ray masuk: incident_ior = currentIOR (udara), transmitted_ior = materialIOR. N_interface tetap.
-
-            const eta_ratio = incident_ior / transmitted_ior;
-            const refractionRayDir_calc = vec3.create();
-            const refracted = vec3.refract(refractionRayDir_calc, rayDirection, N_interface, eta_ratio);
-
-            if (refracted) {
-                const refractionRayOrigin = vec3.create();
-                vec3.scale(refractionRayOrigin, refractionRayDir_calc, EPSILON);
-                vec3.add(refractionRayOrigin, hitPoint, refractionRayOrigin);
-                refractedColor = traceRay(refractionRayOrigin, refractionRayDir_calc, sceneObjects, lights, globalAmbientContribution, backgroundColor, depth + 1, transmitted_ior);
-
-                // Tinting cahaya yang ditransmisikan
-                // Hanya jika bukan plane (lantai tidak seharusnya mentint)
-                if (!hitObject.isPlane) {
-                    const tintedRefracted = vec3.create();
-                    // objectBaseColor sekarang berfungsi sebagai filter untuk transmisi
-                    vec3.multiply(tintedRefracted, refractedColor, objectBaseColor);
-                    refractedColor = tintedRefracted;
-                }
-
-            } else { // Total Internal Reflection
-                const tirReflectionRayDir = vec3.create();
-                vec3.reflect(tirReflectionRayDir, rayDirection, surfaceNormal_true);
-                const tirReflectionRayOrigin = vec3.create();
-                vec3.scale(tirReflectionRayOrigin, tirReflectionRayDir, EPSILON);
-                vec3.add(tirReflectionRayOrigin, hitPoint, tirReflectionRayOrigin);
-                refractedColor = traceRay(tirReflectionRayOrigin, tirReflectionRayDir, sceneObjects, lights, globalAmbientContribution, backgroundColor, depth + 1, currentIOR);
-            }
+          } else {
+            const tirReflectionRayDir = vec3.create();
+            vec3.reflect(tirReflectionRayDir, rayDirection, surfaceNormal_true);
+            const tirReflectionRayOrigin = vec3.create();
+            vec3.scale(tirReflectionRayOrigin, tirReflectionRayDir, EPSILON);
+            vec3.add(tirReflectionRayOrigin, hitPoint, tirReflectionRayOrigin);
+            refractedColor = traceRay(
+              tirReflectionRayOrigin,
+              tirReflectionRayDir,
+              sceneObjsToTrace,
+              lightsToUse,
+              globalAmbient,
+              bgColor,
+              depth + 1,
+              currentMediumIOR
+            );
+          }
         }
 
         const finalCombinedColor = vec3.create();
         const reflectionWeight = materialReflectivity;
-        const transmissionWeight = (1.0 - materialReflectivity) * materialTransparency;
-        const absorptionWeight = (1.0 - materialReflectivity) * (1.0 - materialTransparency);
+        const transmissionWeight =
+          (1.0 - materialReflectivity) * materialTransparency;
+        const absorptionWeight =
+          (1.0 - materialReflectivity) * (1.0 - materialTransparency);
 
-        const scaledPhong = vec3.scale(vec3.create(), localColor, absorptionWeight);
-        const scaledReflection = vec3.scale(vec3.create(), reflectedColor, reflectionWeight);
-        const scaledRefraction = vec3.scale(vec3.create(), refractedColor, transmissionWeight);
+        const scaledPhong = vec3.scale(
+          vec3.create(),
+          localColor,
+          absorptionWeight
+        );
+        const scaledReflection = vec3.scale(
+          vec3.create(),
+          reflectedColor,
+          reflectionWeight
+        );
+        const scaledRefraction = vec3.scale(
+          vec3.create(),
+          refractedColor,
+          transmissionWeight
+        );
 
         vec3.add(finalCombinedColor, scaledPhong, scaledReflection);
         vec3.add(finalCombinedColor, finalCombinedColor, scaledRefraction);
@@ -348,7 +477,7 @@
         return finalCombinedColor;
       }
 
-      // --- Logika Rendering Utama ---
+      // --- Logika Rendering Utama dan Kontrol UI ---
       const canvas = document.getElementById("raytraceCanvas");
       const ctx = canvas.getContext("2d");
       const width = canvas.width;
@@ -356,41 +485,114 @@
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
       const aspectRatio = width / height;
-      const renderScale = 2.0;
+      const renderScale = 2.0; // Anda bisa coba turunkan ini (misal 1.0 atau 0.5) untuk preview lebih cepat saat slider digeser
 
-      const globalAmbientContribution = vec3.scale(vec3.create(), ambientLight.color, ambientLight.intensity);
+      const iorSlider = document.getElementById("iorSlider");
+      const iorValueDisplay = document.getElementById("iorValueDisplay");
+      // Tombol renderButton tidak direferensikan lagi karena sudah dihapus
 
-      console.log("Starting Raytrace (Refraction - Bola Tengah Biru Kecil)...");
-      const startTime = performance.now();
+      const globalAmbientContribution = vec3.scale(
+        vec3.create(),
+        ambientLight.color,
+        ambientLight.intensity
+      );
+      const targetSphereForIOR = spheres[2];
+      iorSlider.value = targetSphereForIOR.ior;
+      iorValueDisplay.textContent = targetSphereForIOR.ior.toFixed(2);
 
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const viewportX = (((x + 0.5) / width) * 2.0 - 1.0) * aspectRatio * renderScale;
-          const viewportY = (1.0 - ((y + 0.5) / height) * 2.0) * renderScale;
-          const viewportPoint = vec3.create(viewportX, viewportY, camera.viewPlaneZ);
+      let isRendering = false; // Flag untuk mencegah multiple render calls
+      let renderTimeoutId = null; // Untuk debouncing jika diperlukan nanti
 
-          const rayDirection = vec3.create();
-          vec3.subtract(rayDirection, viewportPoint, camera.origin);
-          vec3.normalize(rayDirection, rayDirection);
-
-          const finalColor = traceRay(camera.origin, rayDirection, sceneObjects, lights, globalAmbientContribution, backgroundColor, 1, IOR_AIR);
-
-          const index = (y * width + x) * 4;
-          data[index] = Math.floor(finalColor[0] * 255);
-          data[index + 1] = Math.floor(finalColor[1] * 255);
-          data[index + 2] = Math.floor(finalColor[2] * 255);
-          data[index + 3] = 255;
+      function renderScene() {
+        if (isRendering) {
+          // Jika sudah ada proses render, mungkin kita mau membatalkannya
+          // atau menunggu hingga selesai. Untuk sekarang, kita abaikan saja panggilan baru.
+          // Alternatif: Antri panggilan render.
+          console.log("Render in progress, skipping new request.");
+          return;
         }
-        if (y % 25 === 0 && y > 0) {
-          console.log(`Rendering... ${Math.round((y / height) * 100)}%`);
+        isRendering = true;
+
+        currentSceneObjects = [...spheres, floorPlane]; // Rekonstruksi scene
+
+        console.log(
+          `Rendering (IOR Bola Biru: ${targetSphereForIOR.ior.toFixed(2)})...`
+        );
+        // Tidak ada lagi tombol untuk dinonaktifkan
+        const startTime = performance.now();
+
+        // Pindahkan loop rendering ke requestAnimationFrame untuk UI yang lebih responsif
+        // dan untuk memungkinkan pembatalan jika slider digerakkan lagi dengan cepat.
+        // Namun, untuk implementasi raytracer per piksel yang sinkron,
+        // ini akan tetap memblokir UI selama rendering.
+        // Untuk saat ini, kita biarkan sinkron.
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const viewportX =
+              (((x + 0.5) / width) * 2.0 - 1.0) * aspectRatio * renderScale;
+            const viewportY = (1.0 - ((y + 0.5) / height) * 2.0) * renderScale;
+            const viewportPoint = vec3.create(
+              viewportX,
+              viewportY,
+              camera.viewPlaneZ
+            );
+            const rayDirection = vec3.create();
+            vec3.subtract(rayDirection, viewportPoint, camera.origin);
+            vec3.normalize(rayDirection, rayDirection);
+            const finalColor = traceRay(
+              camera.origin,
+              rayDirection,
+              currentSceneObjects,
+              lights,
+              globalAmbientContribution,
+              backgroundColor,
+              1,
+              IOR_AIR
+            );
+            const index = (y * width + x) * 4;
+            data[index] = Math.floor(finalColor[0] * 255);
+            data[index + 1] = Math.floor(finalColor[1] * 255);
+            data[index + 2] = Math.floor(finalColor[2] * 255);
+            data[index + 3] = 255;
+          }
         }
+
+        ctx.putImageData(imageData, 0, 0);
+        const endTime = performance.now();
+        console.log(
+          `Finished in ${((endTime - startTime) / 1000).toFixed(2)}s.`
+        );
+        isRendering = false; // Selesai rendering
       }
 
-      ctx.putImageData(imageData, 0, 0);
-      const endTime = performance.now();
-      console.log(
-        `Raytrace finished in ${((endTime - startTime) / 1000).toFixed(2)} seconds.`
-      );
+      // Event listener untuk slider IOR
+      iorSlider.addEventListener("input", () => {
+        const newIOR = parseFloat(iorSlider.value);
+        iorValueDisplay.textContent = newIOR.toFixed(2);
+        targetSphereForIOR.ior = newIOR;
+
+        // --- Opsi untuk mengatasi performa ---
+        // 1. Render Langsung (seperti ini, bisa lag)
+        if (!isRendering) {
+          // Hanya panggil render jika tidak ada yang sedang berjalan
+          renderScene();
+        } else {
+          console.log(
+            "Skipping immediate render due to ongoing process. Will render on next opportunity or if slider stops."
+          );
+          // Anda bisa implementasikan antrian atau pembatalan render sebelumnya di sini jika mau
+        }
+
+        // 2. Debouncing (tunggu hingga user berhenti menggeser)
+        // clearTimeout(renderTimeoutId);
+        // renderTimeoutId = setTimeout(() => {
+        //     if (!isRendering) renderScene();
+        // }, 250); // Tunggu 250ms setelah slider berhenti
+      });
+
+      // Render scene awal saat halaman dimuat
+      renderScene();
     </script>
   </body>
 </html>
