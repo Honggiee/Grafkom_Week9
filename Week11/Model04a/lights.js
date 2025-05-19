@@ -1,4 +1,4 @@
-// hellocube-object-orbit/js/lights.js
+// hellocube-camera-orbit/js/lights.js
 import * as THREE from 'three';
 
 export function addLights(scene) {
@@ -19,10 +19,6 @@ export function addLights(scene) {
     directionalLight.shadow.camera.bottom = -shadowCameraSize;
     directionalLight.shadow.bias = -0.0005;
     scene.add(directionalLight);
-
-    // Helper untuk shadow (opsional)
-    // const shadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
-    // scene.add(shadowHelper);
 
     const pointLight = new THREE.PointLight(0xffccaa, 0.4, 50);
     pointLight.position.set(-8, 5, -5);

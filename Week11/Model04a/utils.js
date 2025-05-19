@@ -1,4 +1,4 @@
-// hellocube-shadows/js/utils.js
+// hellocube-camera-orbit/js/utils.js
 export function handleResize(camera, renderer) {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();

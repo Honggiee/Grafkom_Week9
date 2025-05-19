@@ -1,7 +1,7 @@
 // hellocube-camera-orbit/js/sceneObjects.js
 import * as THREE from 'three';
 
-// --- Fungsi-fungsi pembuatan objek (kubus, bola, kerucut, plane) tetap sama ---
+// --- Fungsi-fungsi pembuatan objek (kubus, bola, kerucut, plane) ---
 function createFullyEmissiveTexturedCube(
     size, uvTexture, emissiveColorTint = 0xffffff, emissiveIntensity = 1.5,
     edgeColor, initialPosition = { x: 0, y: 0, z: 0 }
@@ -66,24 +66,20 @@ function createTexturedPlane(size, texture, colorTint = 0xffffff) {
 }
 // --- Akhir fungsi pembuatan objek ---
 
+// Definisikan dan ekspor konstanta untuk Y dasar objek
+export const OBJECTS_BASE_Y_WORLD = -2.5;
 
 export function layoutSceneObjects(scene, uvTexture) {
-    // Tidak ada objek yang perlu dikembalikan untuk animasi orbit kamera
-    // const objectsToAnimate = []; // Bisa dihapus atau dibiarkan kosong
+    const groundPlaneY = OBJECTS_BASE_Y_WORLD;
 
-    const groundPlaneY = -2.5; // Posisi Y dasar objek
-
-    // 1. Plane sebagai dasar
     const planeSize = 20;
     const groundPlane = createTexturedPlane(planeSize, uvTexture, 0x888888);
     groundPlane.position.y = groundPlaneY;
     scene.add(groundPlane);
 
-    // 2. Tata letak objek secara statis (berbaris)
     const spacing = 3.0;
-    let currentX = -spacing; // Mulai dari kiri untuk 3 objek
+    let currentX = -spacing;
 
-    // Objek 1: Kubus
     const cubeSize = 1.8;
     const cubeEmissiveTint = 0xffffff;
     const cubeEmissiveIntensity = 1.2;
@@ -91,36 +87,33 @@ export function layoutSceneObjects(scene, uvTexture) {
     const cubeYPosition = groundPlaneY + (cubeSize / 2);
     const fullyEmissiveCube = createFullyEmissiveTexturedCube(
         cubeSize, uvTexture, cubeEmissiveTint, cubeEmissiveIntensity,
-        cubeEdgeColor, { x: currentX, y: cubeYPosition, z: 0 } // Posisi dunia absolut
+        cubeEdgeColor, { x: currentX, y: cubeYPosition, z: 0 }
     );
     fullyEmissiveCube.name = "fullyEmissiveCube";
     scene.add(fullyEmissiveCube);
     currentX += spacing;
 
-    // Objek 2: Bola
     const sphereRadius = 0.9;
     const sphereShininess = 70;
     const sphereYPosition = groundPlaneY + sphereRadius;
     const shinySphere = createShinySphere(
         sphereRadius, uvTexture, sphereShininess,
-        { x: currentX, y: sphereYPosition, z: 0 } // Posisi dunia absolut
+        { x: currentX, y: sphereYPosition, z: 0 }
     );
     shinySphere.name = "shinySphere";
     scene.add(shinySphere);
     currentX += spacing;
 
-    // Objek 3: Kerucut
     const coneRadius = 0.7;
     const coneHeight = 2.0;
     const coneShininess = 50;
     const coneYPosition = groundPlaneY + (coneHeight / 2);
     const shinyCone = createShinyCone(
         coneRadius, coneHeight, uvTexture, coneShininess,
-        { x: currentX, y: coneYPosition, z: 0 } // Posisi dunia absolut
+        { x: currentX, y: coneYPosition, z: 0 }
     );
     shinyCone.name = "shinyCone";
     scene.add(shinyCone);
 
-    // Tidak perlu mengembalikan objectsToAnimate jika tidak ada animasi objek
-    // return objectsToAnimate;
+    // Tidak ada objek yang perlu dianimasikan (selain kamera via controls)
 }

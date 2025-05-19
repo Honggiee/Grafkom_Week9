@@ -7,7 +7,8 @@ import {
   initOrbitControls,
 } from "./sceneSetup.js";
 import { addLights } from "./lights.js";
-import { layoutSceneObjects } from "./sceneObjects.js";
+// Impor OBJECTS_BASE_Y_WORLD dari sceneObjects.js
+import { layoutSceneObjects, OBJECTS_BASE_Y_WORLD } from "./sceneObjects.js";
 import { startAnimationLoop } from "./animation.js";
 import { handleResize } from "./utils.js";
 
@@ -29,24 +30,20 @@ if (!canvas) {
       const camera = initCamera(window.innerWidth / window.innerHeight);
       const renderer = initRenderer(canvas);
 
-      // Inisialisasi OrbitControls
       const controls = initOrbitControls(camera, renderer.domElement);
 
-      // Atur target kontrol ke pusat scene atau area objek
-      // Menggunakan nilai groundPlaneY yang sama seperti yang digunakan di sceneObjects.js (-2.5)
-      const knownGroundPlaneY = -2.5; // Nilai groundPlaneY yang diketahui dari sceneObjects.js
-      const targetY = knownGroundPlaneY + 1.0; // Target sedikit di atas plane, di mana objek berada
+      // Atur target OrbitControls ke sekitar pusat objek statis
+      const targetY = OBJECTS_BASE_Y_WORLD + 1.0; // Sedikit di atas dasar objek
       controls.target.set(0, targetY, 0);
-      controls.update(); // Panggil update sekali setelah set target
+      controls.update();
 
       addLights(scene);
-      layoutSceneObjects(scene, loadedTexture); // Tidak perlu menangkap return value jika kosong
+      layoutSceneObjects(scene, loadedTexture);
 
       window.addEventListener("resize", () => {
         handleResize(camera, renderer);
       });
 
-      // Kirim controls ke loop animasi
       startAnimationLoop(renderer, scene, camera, controls);
       handleResize(camera, renderer);
     },
