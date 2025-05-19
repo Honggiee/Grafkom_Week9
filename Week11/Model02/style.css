@@ -1,0 +1,11 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #111; /* Sedikit lebih gelap untuk kontras dengan emisi */
+}
+
+#webglCanvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+}
