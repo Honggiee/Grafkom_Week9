@@ -1,0 +1,11 @@
+body {
+    margin: 0;
+    overflow: hidden; /* Mencegah scrollbar saat canvas memenuhi layar */
+    background-color: #222; /* Warna latar belakang gelap */
+}
+
+#webglCanvas {
+    display: block; /* Menghilangkan spasi ekstra di bawah canvas */
+    width: 100vw;
+    height: 100vh;
+}
