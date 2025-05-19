@@ -1,10 +1,10 @@
 // hellocube-walkthrough/js/animation.js
 import * as THREE from 'three';
-import { updatePlayerMovement } from './controlsManager.js'; // Impor fungsi update player
+import { updatePlayerMovement } from './controlsManager.js';
 
-export function startAnimationLoop(renderer, scene, camera, playerControls, objectsToAnimate, groundY) {
+// objectsToAnimate dan orbitSpeed tidak lagi diperlukan di sini
+export function startAnimationLoop(renderer, scene, camera, playerControls, groundY) { 
     const clock = new THREE.Clock();
-    const orbitSpeed = 0.3;
 
     function animate() {
         requestAnimationFrame(animate);
@@ -13,14 +13,8 @@ export function startAnimationLoop(renderer, scene, camera, playerControls, obje
         // Update pergerakan player (WASD)
         updatePlayerMovement(deltaTime, playerControls.controls, playerControls.moveState, groundY);
 
-        // Animasikan objek yang mengorbit
-        if (objectsToAnimate && objectsToAnimate.length > 0) {
-            objectsToAnimate.forEach(obj => {
-                if (obj.name === "orbitPivot") {
-                    obj.rotation.y += orbitSpeed * deltaTime;
-                }
-            });
-        }
+        // Tidak ada lagi animasi untuk orbitPivot karena objek statis
+        // if (objectsToAnimate && objectsToAnimate.length > 0) { ... }
 
         renderer.render(scene, camera);
     }

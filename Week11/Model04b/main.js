@@ -1,9 +1,10 @@
 // hellocube-walkthrough/js/main.js
 import * as THREE from "three";
-import { initScene, initCamera, initRenderer } from "./sceneSetup.js"; // initControls tidak diimpor lagi
+import { initScene, initCamera, initRenderer } from "./sceneSetup.js";
 import { addLights } from "./lights.js";
-import { layoutSceneObjects } from "./sceneObjects.js";
-import { initWalkControls } from "./controlsManager.js"; // Impor kontrol baru
+// Impor OBJECTS_BASE_Y_WORLD
+import { layoutSceneObjects, OBJECTS_BASE_Y_WORLD } from "./sceneObjects.js";
+import { initWalkControls } from "./controlsManager.js";
 import { startAnimationLoop } from "./animation.js";
 import { handleResize } from "./utils.js";
 
@@ -23,6 +24,11 @@ if (!canvas) {
 
       const scene = initScene();
       const camera = initCamera(window.innerWidth / window.innerHeight);
+      // Posisi kamera awal mungkin perlu disesuaikan sedikit
+      // Misalnya, jika objek sekarang lebih dekat atau ground plane berubah Y-nya.
+      // Posisi awal (1.7 adalah tinggi mata rata-rata) relatif terhadap ground.
+      camera.position.set(0, OBJECTS_BASE_Y_WORLD + 1.7, 5);
+
       const renderer = initRenderer(canvas);
 
       // Inisialisasi kontrol walkthrough
@@ -31,23 +37,22 @@ if (!canvas) {
         renderer.domElement,
         scene
       );
-      const groundY = -1.0; // Samakan dengan di sceneObjects
 
       addLights(scene);
-      const animatedObjects = layoutSceneObjects(scene, loadedTexture);
+      // layoutSceneObjects tidak lagi mengembalikan objek untuk dianimasikan orbitnya
+      layoutSceneObjects(scene, loadedTexture);
 
       window.addEventListener("resize", () => {
-        handleResize(camera, renderer); // Kamera masih perlu di-resize
+        handleResize(camera, renderer);
       });
 
-      // Kirim playerControls ke loop animasi
+      // Kirim OBJECTS_BASE_Y_WORLD sebagai groundY ke loop animasi
       startAnimationLoop(
         renderer,
         scene,
         camera,
         playerControls,
-        animatedObjects,
-        groundY
+        OBJECTS_BASE_Y_WORLD
       );
       handleResize(camera, renderer);
     },

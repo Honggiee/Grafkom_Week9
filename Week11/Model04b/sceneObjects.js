@@ -66,65 +66,61 @@ function createTexturedPlane(size, texture, colorTint = 0xffffff) {
 }
 // --- Akhir fungsi pembuatan objek ---
 
+// Definisikan dan ekspor konstanta untuk Y dasar objek
+export const OBJECTS_BASE_Y_WORLD = -1.0; // Pastikan nilai ini konsisten
 
 export function layoutSceneObjects(scene, uvTexture) {
-    const objectsToAnimate = [];
+    // Tidak ada orbitPivot, objek akan statis
+    // const objectsToAnimate = []; // Tidak perlu dikembalikan jika kosong
 
-    const groundPlaneY = -1.0; // Naikkan sedikit ground plane untuk posisi kamera awal yang lebih baik
+    const groundPlaneY = OBJECTS_BASE_Y_WORLD;
 
     const planeSize = 20;
     const groundPlane = createTexturedPlane(planeSize, uvTexture, 0x888888);
     groundPlane.position.y = groundPlaneY;
     scene.add(groundPlane);
 
-    const orbitPivot = new THREE.Object3D();
-    orbitPivot.name = "orbitPivot";
-    orbitPivot.position.y = 0; // Pivot di y=0, objek anak akan relatif
-    scene.add(orbitPivot);
-    objectsToAnimate.push(orbitPivot);
+    // Tata letak objek secara statis (berbaris)
+    const spacing = 3.0;
+    let currentX = -spacing; // Mulai dari kiri untuk 3 objek
 
-    const orbitRadius = 4.0;
-    const numObjects = 3;
-    const angleIncrement = (Math.PI * 2) / numObjects;
-
+    // Objek 1: Kubus
     const cubeSize = 1.8;
     const cubeEmissiveTint = 0xffffff;
     const cubeEmissiveIntensity = 1.2;
     const cubeEdgeColor = 0xffddaa;
     const cubeYPosition = groundPlaneY + (cubeSize / 2);
-    const cubeAngle = 0;
-    const cubeX = Math.cos(cubeAngle) * orbitRadius;
-    const cubeZ = Math.sin(cubeAngle) * orbitRadius;
     const fullyEmissiveCube = createFullyEmissiveTexturedCube(
         cubeSize, uvTexture, cubeEmissiveTint, cubeEmissiveIntensity,
-        cubeEdgeColor, { x: cubeX, y: cubeYPosition - orbitPivot.position.y, z: cubeZ } 
+        cubeEdgeColor, { x: currentX, y: cubeYPosition, z: 0 }
     );
-    orbitPivot.add(fullyEmissiveCube);
+    fullyEmissiveCube.name = "fullyEmissiveCube";
+    scene.add(fullyEmissiveCube);
+    currentX += spacing;
 
+    // Objek 2: Bola
     const sphereRadius = 0.9;
     const sphereShininess = 70;
     const sphereYPosition = groundPlaneY + sphereRadius;
-    const sphereAngle = angleIncrement;
-    const sphereX = Math.cos(sphereAngle) * orbitRadius;
-    const sphereZ = Math.sin(sphereAngle) * orbitRadius;
     const shinySphere = createShinySphere(
         sphereRadius, uvTexture, sphereShininess,
-        { x: sphereX, y: sphereYPosition - orbitPivot.position.y, z: sphereZ }
+        { x: currentX, y: sphereYPosition, z: 0 }
     );
-    orbitPivot.add(shinySphere);
+    shinySphere.name = "shinySphere";
+    scene.add(shinySphere);
+    currentX += spacing;
 
+    // Objek 3: Kerucut
     const coneRadius = 0.7;
     const coneHeight = 2.0;
     const coneShininess = 50;
     const coneYPosition = groundPlaneY + (coneHeight / 2);
-    const coneAngle = angleIncrement * 2;
-    const coneX = Math.cos(coneAngle) * orbitRadius;
-    const coneZ = Math.sin(coneAngle) * orbitRadius;
     const shinyCone = createShinyCone(
         coneRadius, coneHeight, uvTexture, coneShininess,
-        { x: coneX, y: coneYPosition - orbitPivot.position.y, z: coneZ }
+        { x: currentX, y: coneYPosition, z: 0 }
     );
-    orbitPivot.add(shinyCone);
+    shinyCone.name = "shinyCone";
+    scene.add(shinyCone);
 
-    return objectsToAnimate;
+    // return objectsToAnimate; // Tidak perlu jika kosong
 }
