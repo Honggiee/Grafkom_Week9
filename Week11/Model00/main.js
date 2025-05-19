@@ -1,7 +1,7 @@
 // hellocube/js/main.js
 import * as THREE from 'three';
 import { initScene, initCamera, initRenderer } from './sceneSetup.js';
-import { createCube, addLights } from './cube.js';
+import { createCube, addLights } from './cube.js'; // addLights masih diimpor, tapi mungkin tidak dipanggil
 import { startAnimationLoop } from './animation.js';
 import { handleResize } from './utils.js';
 
@@ -20,18 +20,16 @@ if (!canvas) {
     scene.add(cube); // Tambahkan kubus ke scene
 
     // (Opsional) Tambahkan cahaya jika menggunakan material yang membutuhkannya
-    // Jika menggunakan MeshNormalMaterial, baris ini bisa dikomentari
-    addLights(scene); 
+    // Untuk MeshBasicMaterial, baris ini TIDAK diperlukan.
+    // Jika Anda memiliki objek lain di scene yang membutuhkan cahaya, Anda bisa memanggilnya.
+    // addLights(scene); 
 
     // 3. Tangani Perubahan Ukuran Jendela
-    // Kita perlu meneruskan fungsi handleResize yang sudah di-bind dengan argumennya
-    // atau membungkusnya dalam fungsi anonim agar event listener tidak mengacaukan 'this'
     window.addEventListener('resize', () => {
         handleResize(camera, renderer);
     });
 
     // 4. Mulai Loop Animasi
-    // Kirim objek yang ingin dianimasikan (dalam hal ini, kubus)
     startAnimationLoop(renderer, scene, camera, [cube]);
 
     // Pemanggilan awal handleResize untuk memastikan ukuran awal sudah benar
