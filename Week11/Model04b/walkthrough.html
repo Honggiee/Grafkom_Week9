@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HelloCube Walkthrough - Three.js</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="blocker">
+        <div id="instructions">
+            <p style="font-size:36px">
+                Click to play
+            </p>
+            <p>
+                Move: WASD<br>
+                Look: MOUSE<br>
+                Jump: SPACE (not implemented)<br>
+                Unlock Pointer: ESC
+            </p>
+        </div>
+    </div>
+    <canvas id="webglCanvas"></canvas>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
